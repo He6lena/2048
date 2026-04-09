@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>2048 澈清酱 - Green Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <style>
+        :root {
+            /* 莫兰迪绿色系 - 低饱和度 */
+            --bg-body-green: #e2ede2;   /* 极淡的灰绿色背景 */
+            --bg-board-green: #c4d9c4;  /* 棋盘底色 */
+            --text-moss-green: #4a594a; /* 深苔绿文字 */
+            --btn-sage-green: #8ba38b;  /* 鼠尾草绿按钮/分数框 */
+            --btn-undo-pale: #d6e0d6;   /* 撤销按钮浅绿 */
+            
+            --tile-empty: rgba(255, 255, 255, 0.4);
+        }
+
+        body {
+            background-color: var(--bg-body-green);
+            /* 背景图：放在右上角 */
+            background-image: url('./assets/bg_bottom_left.png'); 
+            background-repeat: no-repeat;
+            background-position: right top;
+            background-size: 40% auto; 
+            
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: var(--text-moss-green);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: none;
+            
+            /* 整体顶部间距保持 */
+            padding-top: 30px; 
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            /* 💥 给左边增加 padding，防止标题贴边 */
+            padding: 0 20px 30px 20px; 
+            box-sizing: border-box;
+            position: relative; 
+            z-index: 1; 
+            display: flex;
+            flex-direction: column;
+            /* 💥 容器居中，但内部元素我们单独控制 */
+            align-items: center;
+        }
+
+        /* 💥 顶部布局大改：上面的部分左移，不要挡住右边的图 */
+        header {
+            display: flex;
+            flex-direction: column; /* 垂直排列 logo 和分数 */
+            justify-content: flex-start; /* 💥 居左 */
+            align-items: flex-start; /* 💥 居左 */
+            margin-bottom: 10px; /* 减小间距，让分数贴近 */
+            /* 💥 限制宽度，防止文字伸展到右边挡图 */
+            width: 60%; 
+            margin-right: auto; /* 靠左对齐 */
+        }
+
+        /* 💥 恢复原样，但文字左对齐 */
+        .logo {
+            font-size: 36px; /* 💥 稍微调小一点以适配左边区域 */
+            font-weight: 800;
+            line-height: 0.9;
+            letter-spacing: 2px;
+            color: var(--text-moss-green);
+            text-align: left; /* 💥 居左 */
+            margin-bottom: 10px;
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: flex-start; /* 💥 分数居左 */
+            gap: 15px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .score-box {
+            background: var(--btn-sage-green);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-align: center;
+            /* 💥 减小 min-width，使整体更紧凑 */
+            min-width: 80px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .score-label { font-size: 11px; text-transform: uppercase; font-weight: bold; opacity: 0.9; }
+        .score-value { font-size: 18px; font-weight: bold; }
+
+        /* 💥 恢复到标题下方，文字下移一点 */
+        .intro { 
+            font-size: 14px; /* 稍微调小一点 */
+            line-height: 1.5; 
+            /* 💥 这里控制下移幅度，减小一点上移幅度，让它离标题远一点 */
+            margin-top: 15px; 
+            margin-bottom: 15px;
+            color: rgba(74, 89, 74, 0.8); 
+            text-align: left; /* 💥 妹妹酱文字也居左 */
+            /* 💥 同样限制宽度防挡图 */
+            width: 70%; 
+            margin-right: auto;
+        }
+        .intro b { color: var(--text-moss-green); font-weight: 800; }
+
+        /* 新游戏按钮：随分数居左 */
+        .action-row {
+            display: flex;
+            justify-content: flex-start; /* 💥 居左 */
+            margin-bottom: 25px;
+            width: 100%;
+        }
+
+        .new-game-btn {
+            background: var(--btn-sage-green);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .new-game-btn:hover { opacity: 0.9; }
+
+        /* skin和album行依然保持居中，但位置上移 */
+        .mode-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            width: 100%;
+        }
+
+        .mode-item { opacity: 0.5; cursor: pointer; padding: 6px 10px; transition: 0.3s; }
+        .mode-item:hover { opacity: 1; }
+        .mode-active {
+            background: var(--btn-sage-green);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 4px;
+            opacity: 1;
+        }
+
+        /* 💥 需求：中间空太大了，把下面的区域整体往上移动 */
+        #game-wrapper {
+            position: relative;
+            background: var(--bg-board-green);
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+            /* 💥 使用负 margin-top 大幅整体上拉棋盘，填补空白 */
+            margin-top: -20px; 
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 2; /* 确保盖在背景人物上（如发生重叠） */
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+
+        .tile {
+            aspect-ratio: 1 / 1;
+            background: var(--tile-empty);
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+            object-position: center 15%; 
+        }
+
+        .tile span {
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            z-index: 1;
+        }
+
+        #over {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(226, 237, 226, 0.9);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 6px;
+        }
+
+        #over h2 { font-size: 40px; color: var(--btn-sage-green); margin-bottom: 20px; }
+
+        .footer-tags {
+            margin-top: 15px;
+            text-align: right;
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-moss-green);
+            opacity: 0.6;
+            width: 100%;
+        }
+
+        /* 撤销案件依然在左下方 */
+        #undo-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 20px; 
+            width: 60px;
+            height: 60px;
+            background: var(--btn-undo-pale);
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-moss-green);
+            z-index: 100;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        #undo-btn:hover { opacity: 1; }
+
+        /* 💥 动画定义：仅用于加了 class 的元素 */
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes appear { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+        .tile-merged { animation: pop 200ms ease-in-out; }
+        .tile-new { animation: appear 200ms ease-out; }
+
+        @media (max-width: 420px) {
+            body { padding-top: 20px; } 
+            .logo { font-size: 30px; } /* 移动端再调小一点logo */
+            #board { gap: 8px; }
+            #game-wrapper { margin-top: -30px; } /* 移动端减小上拉幅度 */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo">2048<br>*****<br>𝑇.澈清𝐜ợ</div>
+        
+        <div class="score-container">
+            <div class="score-box">
+                <div class="score-label">Best</div>
+                <div id="best" class="score-value">0</div>
+            </div>
+            <div class="score-box">
+                <div class="score-label">Score</div>
+                <div id="score" class="score-value">0</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="action-row">
+        <button class="new-game-btn" onclick="restart()">New Game</button>
+    </div>
+
+    <div class="intro">
+        合并方块，解锁可爱的<b>妹妹酱</b>吧！
+    </div>
+
+    <div class="mode-bar" id="mode-bar">
+        <span class="mode-active" onclick="switchMode('skin')">Skin</span>
+        <span class="mode-item" onclick="switchMode('album')">Album</span>
+    </div>
+
+    <div id="game-wrapper">
+        <div id="board"></div>
+        <div id="over">
+            <h2>Game over!</h2>
+            <button class="new-game-btn" onclick="restart()">Try again</button>
+        </div>
+    </div>
+
+    <div class="footer-tags"># 高冷男孩_澈清酱 & 清柠糖</div>
+</div>
+
+<button id="undo-btn" onclick="undo()">↺</button>
+
+<script>
+    const SIZE = 4;
+    let board = [], score = 0, over = false, history = [];
+    // 💥 统一 Key
+    let best = localStorage.getItem('best澈清酱_Green') ? parseInt(localStorage.getItem('best澈清酱_Green')) : 0;
+    
+    // 💥 动画追踪变量
+    let lastNewTile = null; 
+    let lastMergedTiles = []; 
+
+    let currentMode = 'skin';
+    const MODE_ASSETS = {
+        'skin': './assets/skin/',   
+        'album': './assets/album/'   
+    };
+
+    function switchMode(mode) {
+        if(currentMode === mode) return; 
+        currentMode = mode;
+        const items = document.querySelectorAll('.mode-bar span');
+        items.forEach(item => {
+            item.className = item.innerText.toLowerCase() === mode ? 'mode-active' : 'mode-item';
+        });
+        draw();
+    }
+
+    function slide(row) {
+        let arr = row.filter(val => val !== 0);
+        let gain = 0;
+        let mergedIndices = []; 
+        for (let i = 0; i < arr.length - 1; i++) {
+            if (arr[i] === arr[i + 1]) {
+                arr[i] *= 2; gain += arr[i]; arr[i + 1] = 0;
+                mergedIndices.push(i);
+            }
+        }
+        arr = arr.filter(val => val !== 0);
+        while (arr.length < SIZE) arr.push(0);
+        return [arr, gain, mergedIndices];
+    }
+
+    function rotate(matrix) {
+        return matrix[0].map((val, index) => matrix.map(row => row[index]).reverse());
+    }
+
+    function move(dir) {
+        if (over) return;
+        let prevBoard = JSON.stringify(board);
+        let gain = 0;
+        // 💥 修复方向：UP:3, DOWN:1
+        let rotatedTimes = { 'UP': 3, 'RIGHT': 2, 'DOWN': 1, 'LEFT': 0 }[dir];
+        let tempBoard = board;
+        for (let i = 0; i < rotatedTimes; i++) tempBoard = rotate(tempBoard);
+
+        let newBoard = [];
+        let mergedPositions = [];
+        for (let i = 0; i < SIZE; i++) {
+            let [newRow, rowGain, mergedIndices] = slide(tempBoard[i]);
+            newBoard.push(newRow); gain += rowGain;
+            mergedIndices.forEach(idx => mergedPositions.push({r: i, c: idx}));
+        }
+
+        // 还原旋转并转换合并坐标
+        for (let i = 0; i < (4 - rotatedTimes) % 4; i++) {
+            newBoard = rotate(newBoard);
+            mergedPositions = mergedPositions.map(p => ({r: p.c, c: SIZE - 1 - p.r}));
+        }
+
+        if (JSON.stringify(newBoard) !== prevBoard) {
+            saveHistory();
+            board = newBoard; score += gain;
+            lastMergedTiles = mergedPositions.map(p => `${p.r}-${p.c}`);
+            if (score > best) { best = score; localStorage.setItem('best澈清酱_Green', best); }
+            addNumber();
+            if (!canMove()) over = true;
+            draw();
+        }
+    }
+
+    function canMove() {
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (board[i][j] === 0) return true;
+                if (i < SIZE - 1 && board[i][j] === board[i + 1][j]) return true;
+                if (j < SIZE - 1 && board[i][j] === board[i][j + 1]) return true;
+            }
+        }
+        return false;
+    }
+
+    function addNumber() {
+        let empty = [];
+        for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE; j++) if (board[i][j] === 0) empty.push({ r: i, c: j });
+        if (empty.length > 0) {
+            let spot = empty[Math.floor(Math.random() * empty.length)];
+            board[spot.r][spot.c] = Math.random() < 0.9 ? 2 : 4;
+            lastNewTile = `${spot.r}-${spot.c}`;
+        }
+    }
+
+    function draw() {
+        const boardDiv = document.getElementById('board');
+        boardDiv.innerHTML = '';
+        board.forEach((row, r) => {
+            row.forEach((val, c) => {
+                let tile = document.createElement('div');
+                let pos = `${r}-${c}`;
+                tile.className = 'tile';
+                
+                // 💥 仅给变化的格子加 class
+                if (pos === lastNewTile) tile.classList.add('tile-new');
+                if (lastMergedTiles.includes(pos)) tile.classList.add('tile-merged');
+
+                if (val !== 0) {
+                    let img = document.createElement('img');
+                    img.src = `${MODE_ASSETS[currentMode]}${val}.jpg`;
+                    img.onerror = () => {
+                        img.remove();
+                        tile.innerHTML = `<span>${val}</span>`;
+                        tile.style.background = "#fff";
+                    };
+                    tile.appendChild(img);
+                }
+                boardDiv.appendChild(tile);
+            });
+        });
+        document.getElementById('score').textContent = score;
+        document.getElementById('best').textContent = best;
+        document.getElementById('over').style.display = over ? 'flex' : 'none';
+        
+        lastNewTile = null; lastMergedTiles = [];
+    }
+
+    function saveHistory() {
+        history.push({ board: JSON.parse(JSON.stringify(board)), score: score });
+        if (history.length > 50) history.shift();
+    }
+
+    function undo() {
+        if (history.length > 0) {
+            let last = history.pop();
+            board = last.board; score = last.score; over = false;
+            lastNewTile = null; lastMergedTiles = [];
+            draw();
+        }
+    }
+
+    function restart() {
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+        score = 0; history = []; over = false;
+        lastNewTile = null; lastMergedTiles = [];
+        addNumber(); addNumber();
+        draw();
+    }
+
+    window.addEventListener('keydown', e => {
+        if (e.key.includes('Arrow')) move(e.key.replace('Arrow', '').toUpperCase());
+    });
+
+    let tsX, tsY;
+    document.addEventListener('touchstart', e => { tsX = e.touches[0].clientX; tsY = e.touches[0].clientY; });
+    document.addEventListener('touchend', e => {
+        let dx = e.changedTouches[0].clientX - tsX;
+        let dy = e.changedTouches[0].clientY - tsY;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) > 30) {
+            move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'RIGHT' : 'LEFT') : (dy > 0 ? 'DOWN' : 'UP'));
+        }
+    });
+
+    restart();
+</script>
+</body>
+</html>
